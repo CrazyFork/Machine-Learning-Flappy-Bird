@@ -1,3 +1,27 @@
+
+#
+这个仓库最核心的代码是genetic.js，这个文件演示了如何利用神经网络还有遗传算法来解决训练参数的择优和优化，虽然这个游戏没有终结过程，但是我们完全可以
+在score大于多少时候终结游戏，并记录神经元的各项数据来完成模型训练。
+关于遗传算法可以先读下下面的链接。简单易懂。
+
+Features:
+* 这个仓库演示了如何利用神经网络玩flappy bird, 
+* 如何用Phaser.js创建html5游戏
+
+
+
+Links:
+* [phaser api](http://phaser.io/docs/2.6.2/index)
+* [一文读懂遗传算法工作原理（附Python实现）](http://mp.weixin.qq.com/s/rXDj5ryRvjbkenp9IEokDQ)
+
+
+todos:
+    * what is neuro -> bias, connection -> weight,  Nero Network tutorial, basics?
+    * gaming physics, 
+
+
+
+
 # Machine Learning for Flappy Bird using Neural Network and Genetic Algorithm
 
 Here is the source code for a HTML5 project that implements a machine learning algorithm in the Flappy Bird video game using neural networks and a genetic algorithm. The program teaches a little bird how to flap optimally in order to fly safely through barriers as long as possible.

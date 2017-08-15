@@ -1,8 +1,15 @@
+/*
+
+* [phaser api](http://phaser.io/docs/2.6.2/index)
+*/
+
 /***********************************************************************************
 /* Create a new Phaser Game on window load
 /***********************************************************************************/
 
 window.onload = function () {
+	// 真正的画布面基, 出去计分板 width = 1280 - 370 = 910, height = 710 - 100, 610
+	// bird coordinate is, x = 150, y = 300 + idx * 20
 	var game = new Phaser.Game(1280, 720, Phaser.CANVAS, 'game');
 	
 	game.state.add('Main', App.Main);
@@ -26,11 +33,13 @@ App.Main = function(game){
 
 App.Main.prototype = {
 	preload : function(){
+		// 36*36 是每一个鸟的大小, 20是总的个数, 一只鸟的状态只有2 column, 10*2
 		this.game.load.spritesheet('imgBird', 'assets/img_bird.png', 36, 36, 20);
+		// 树同样 90x400*2个
 		this.game.load.spritesheet('imgTree', 'assets/img_tree.png', 90, 400, 2);
 		this.game.load.spritesheet('imgButtons', 'assets/img_buttons.png', 110, 40, 3);
 		
-		this.game.load.image('imgTarget', 'assets/img_target.png');
+		this.game.load.image('imgTarget', 'assets/img_target.png');//最佳目标点，即gap的中间
 		this.game.load.image('imgGround', 'assets/img_ground.png');
 		this.game.load.image('imgPause', 'assets/img_pause.png');
 		this.game.load.image('imgLogo', 'assets/img_logo.png');
@@ -63,6 +72,7 @@ App.Main.prototype = {
 		this.GA = new GeneticAlgorithm(10, 4);
 		
 		// create a BirdGroup which contains a number of Bird objects
+		// only add birds to group, when game state is set to play, each bird's reset will be called, set each x to 150
 		this.BirdGroup = this.game.add.group();
 		for (var i = 0; i < this.GA.max_units; i++){
 			this.BirdGroup.add(new Bird(this.game, 0, 0, i));
@@ -88,8 +98,11 @@ App.Main.prototype = {
 		this.bmdStatus.addToWorld(this.game.width - this.bmdStatus.width, 0);
 		
 		// create text objects displayed in the HUD header
+		// http://phaser.io/docs/2.6.2/Phaser.Text.html
 		new Text(this.game, 1047, 10, "In1  In2  Out", "right", "fnt_chars_black"); // Input 1 | Input 2 | Output
+		// Generation Pre
 		this.txtPopulationPrev = new Text(this.game, 1190, 10, "", "right", "fnt_chars_black"); // No. of the previous population
+		// Generation Current
 		this.txtPopulationCurr = new Text(this.game, 1270, 10, "", "right", "fnt_chars_black"); // No. of the current population
 		
 		// create text objects for each bird to show their info on the HUD
@@ -101,8 +114,10 @@ App.Main.prototype = {
 			var y = 46 + i*50;
 			
 			new Text(this.game, 1110, y, "Fitness:\nScore:", "right", "fnt_chars_black")
+			// green & red 是重叠的
 			this.txtStatusPrevGreen.push(new Text(this.game, 1190, y, "", "right", "fnt_digits_green"));
 			this.txtStatusPrevRed.push(new Text(this.game, 1190, y, "", "right", "fnt_digits_red"));
+			// 当前的分值是蓝色的
 			this.txtStatusCurr.push(new Text(this.game, 1270, y, "", "right", "fnt_digits_blue"));
 		}
 		
@@ -166,7 +181,7 @@ App.Main.prototype = {
 				// start a new population of birds
 				this.BirdGroup.forEach(function(bird){
 					bird.restart(this.GA.iteration);
-					
+					// display green if pre iteration is winner or red a loser
 					if (this.GA.Population[bird.index].isWinner){
 						this.txtStatusPrevGreen[bird.index].text = bird.fitness_prev.toFixed(2)+"\n" + bird.score_prev;
 						this.txtStatusPrevRed[bird.index].text = "";
@@ -181,6 +196,7 @@ App.Main.prototype = {
 				
 			case this.STATE_PLAY: // play Flappy Bird game by using genetic algorithm AI
 				// update position of the target point
+				// 目标点在每个barrier 的 gap 的中间后边位置, x = barrier.x + barrier.width , y = barrier_bottom.y - gap.height/2
 				this.TargetPoint.x = this.targetBarrier.getGapX();
 				this.TargetPoint.y = this.targetBarrier.getGapY();
 				
@@ -188,8 +204,9 @@ App.Main.prototype = {
 				
 				this.BirdGroup.forEachAlive(function(bird){
 					// calculate the current fitness and the score for this bird
+					// 飞行距离 - 距离目标点的距离
 					bird.fitness_curr = this.distance - this.game.physics.arcade.distanceBetween(bird, this.TargetPoint);
-					bird.score_curr = this.score;
+					bird.score_curr = this.score; //通过一个barrier就加一
 					
 					// check collision between a bird and the target barrier
 					this.game.physics.arcade.collide(bird, this.targetBarrier, this.onDeath, null, this);
@@ -198,6 +215,7 @@ App.Main.prototype = {
 						// check if a bird passed through the gap of the target barrier
 						if (bird.x > this.TargetPoint.x) isNextTarget = true;
 						
+						// 610 = GameHeight(710) - GroudHeight(100)
 						// check if a bird flies out of vertical bounds
 						if (bird.y<0 || bird.y>610) this.onDeath(bird);
 						
@@ -221,6 +239,8 @@ App.Main.prototype = {
 				}
 				
 				// increase the travelled distance
+				// 移动的距离, 因为距离总是用第一个barrier的deltaX（即上一次渲染的x和当前渲染的x的差值）相加的结果, 本身
+				// 鸟是不移动的，只是背景移动, 即移动 barrier
 				this.distance += Math.abs(this.firstBarrier.topTree.deltaX);
 				
 				this.drawStatus();				
@@ -236,6 +256,7 @@ App.Main.prototype = {
 	},
 	
 	drawStatus : function(){
+		// 计分板最上面的灰度的背景
 		this.bmdStatus.fill(180, 180, 180); // clear bitmap data by filling it with a gray color
 		this.bmdStatus.rect(0, 0, this.bmdStatus.width, 35, "#8e8e8e"); // draw the HUD header rect
 			
@@ -247,12 +268,15 @@ App.Main.prototype = {
 			
 			if (bird.alive){
 				var brain = this.GA.Population[bird.index].toJSON();
-				var scale = this.GA.SCALE_FACTOR*0.02;
-				
+				var scale = this.GA.SCALE_FACTOR*0.02; // resize to [0, 40]
+				// 鸟对应 target point 的 x 距离的值的比重
 				this.bmdStatus.rect(62, y, 9, -(50 - brain.neurons[0].activation/scale), "#000088"); // input 1
+				// 鸟对应 target point 的 y 距离的值的比重
 				this.bmdStatus.rect(90, y, 9, brain.neurons[1].activation/scale, "#000088"); // input 2
 				
+				// 最后的neuron阀值小于0.5则不flap, 显示红色
 				if (brain.neurons[brain.neurons.length-1].activation<0.5) this.bmdStatus.rect(118, y, 9, -20, "#880000"); // output: flap = no
+				// 显示绿色
 				else this.bmdStatus.rect(118, y, 9, -40, "#008800"); // output: flap = yes
 			}
 			
@@ -284,6 +308,7 @@ App.Main.prototype = {
 	onPauseClick : function(){
 		this.game.paused = true;
 		this.btnPause.input.reset();
+		// 游戏主界面显示的pause提示, 默认是kill的状态，即不显示, 当resume的时候，从新激活
 		this.sprPause.revive();
     },
 	
@@ -299,7 +324,7 @@ App.Main.prototype = {
 /***********************************************************************************
 /* TreeGroup Class extends Phaser.Group
 /***********************************************************************************/	
-	
+// http://phaser.io/docs/2.6.2/Phaser.Group.html	
 var TreeGroup = function(game, parent, index){
 	Phaser.Group.call(this, game, parent);
 
@@ -316,12 +341,14 @@ TreeGroup.prototype = Object.create(Phaser.Group.prototype);
 TreeGroup.prototype.constructor = TreeGroup;
 
 TreeGroup.prototype.restart = function(x) {
+	// a single tree is 90*400
 	this.topTree.reset(0, 0);
-	this.bottomTree.reset(0, this.topTree.height + 130);
+	this.bottomTree.reset(0, this.topTree.height + 130);// 130 = Gap ?, it should be
 
 	this.x = x;
+	// [-390, -20]
 	this.y = this.game.rnd.integerInRange(110-this.topTree.height, -20);
-
+	// move tree -200px per second to left ?
 	this.setAll('body.velocity.x', -200);
 };
 
@@ -334,7 +361,7 @@ TreeGroup.prototype.getGapX = function() {
 };
 
 TreeGroup.prototype.getGapY = function() {
-	return this.bottomTree.world.y - 65;
+	return this.bottomTree.world.y - 65; // gap middle ?, 130/2
 };
 
 /***********************************************************************************
@@ -358,17 +385,27 @@ Tree.prototype.constructor = Tree;
 /***********************************************************************************/
 
 var Bird = function(game, x, y, index) {
+	// x,y is the coordinate in the world space
 	Phaser.Sprite.call(this, game, x, y, 'imgBird');
 	   
 	this.index = index;
+	/*
+	The anchor sets the origin point of the texture.
+	The default is 0,0 this means the texture's origin is the top left
+	Setting than anchor to 0.5,0.5 means the textures origin is centered
+	Setting the anchor to 1,1 would mean the textures origin points will be the bottom right corner
+	*/
 	this.anchor.setTo(0.5);
 	  
 	// add flap animation and start to play it
 	var i=index*2;
+	// 因为就2帧，鸟的动画，所以是[i, i+1]
 	this.animations.add('flap', [i, i+1]);
 	this.animations.play('flap', 8, true);
 
 	// enable physics on the bird
+	// http://phaser.io/docs/2.6.2/Phaser.Physics.html
+	// this.game.physics: Phaser.Physics
 	this.game.physics.arcade.enableBody(this);
 };
 
@@ -383,15 +420,20 @@ Bird.prototype.restart = function(iteration){
 	this.score_curr = 0;
 	
 	this.alpha = 1;
+	// world coordinate, x, y
 	this.reset(150, 300 + this.index * 20);
 };
 
 Bird.prototype.flap = function(){
+	// 这应该跟物理引擎相关，位置减去400px感觉不对
+	// http://phaser.io/docs/2.6.2/Phaser.Physics.Arcade.Body.html#velocity
+	// The velocity, or rate of change in speed of the Body. Measured in pixels per second.
 	this.body.velocity.y = -400;
 };
 
 Bird.prototype.death = function(){
 	this.alpha = 0.5;
+	// A killed Game Object has its alive, exists and visible properties all set to false.
 	this.kill();
 };
 

@@ -49,15 +49,19 @@ GeneticAlgorithm.prototype = {
 	// to calculate an output action according to the inputs
 	activateBrain : function(bird, target){		
 		// input 1: the horizontal distance between the bird and the target
+		// 700, 800应该是canvas的宽度, 这里边的公式将 detalX & detalY 的值 normalize 到了 —+SCALE_FACTOR 以内
 		var targetDeltaX = this.normalize(target.x, 700) * this.SCALE_FACTOR;
 		
 		// input 2: the height difference between the bird and the target
+		// :todo, 700 和 800 数字似乎定义的有些 random， 没有任何强制的逻辑可言， 鸟x=150，有效画布宽度是910, 就算barrier在画布最右侧, 910-150=760还是
+		// 有效画布高度是610, 就算鸟在y的画布之外, 610页应该是最大值
 		var targetDeltaY = this.normalize(bird.y - target.y, 800) * this.SCALE_FACTOR;
 	
 		// create an array of all inputs
 		var inputs = [targetDeltaX, targetDeltaY];
 		
 		// calculate outputs by activating synaptic neural network of this bird
+		// 鸟和第一个barrier的距离x，和垂直高度的差y, 输入给神经元
 		var outputs = this.Population[bird.index].activate(inputs);
 			
 		// perform flap if output is greater than 0.5
@@ -178,7 +182,7 @@ GeneticAlgorithm.prototype = {
 	// mutates a gene
 	mutate : function (gene){
 		if (Math.random() < this.mutateRate) {
-			var mutateFactor = 1 + ((Math.random() - 0.5) * 3 + (Math.random() - 0.5));
+			var mutateFactor = 1 + ((Math.random() - 0.5) * 3 + (Math.random() - 0.5)); // :todo, 1+random()*0.5*4
 			gene *= mutateFactor;
 		}
 		
